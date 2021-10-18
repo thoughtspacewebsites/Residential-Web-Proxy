@@ -8,23 +8,27 @@ Utilizes docker to install both OpenVPN server and HAProxy. Using OpenVPN, clien
 
 This image depends on the kylemanna/openvpn docker image. This image must be installed and correctly configured. You'll want to set this image up on a cloud VPS service like Digital Ocean. Install Docker and docker compose, and then follow the docker-compose quick start guide here: https://github.com/kylemanna/docker-openvpn/blob/master/docs/docker-compose.md
 
-After getting the server set up, and configuring a client certificate for your home lab, make sure the container is online by running
+After getting the server set up, and configuring a client certificate for your home lab, we'll want to make sure we have our port configuration for Docker set up right. You can do this by opening the docker-compose.yml file and editing the ports area to your liking. This will link publicly accessible ports on the host machine through to a port within our OpenVPN docker container. From there, we'll be able to route that internal container port to the proper port on our client machine. For example, if you want to forward SSH through your server (recommended otherwise you'll be limited to console access), you would add a section to the ports in docker-compose for it. I like to use a random public and container port for this service. The random public port keeps it from conflicting with SSH access to the server itself. For example, I use "2613:12344" in the ports of my docker-compose. This will forward port 2613 on the host machine through to port 12344 within the container, where we'll be able to further forward it after connecting our client.
+
+After configuring your docker-compose ports for any public services you'll need, make sure the container is online by running
 
 	docker-compose up -d
 
-Afterwards, edit the forward.sh file and change all instances of the static IP address for the server to your actual homelabs IP address on the VPN network. The easiest way to figure this out is by just setting it to a static IP as described below. Anyway, edit forward.sh and make sure your proper IP for your homelab is in there. The defined ports will determine which port is exposed to the docker container instance that you'll then be able to forward out using the ports option in docker-compose. Right now, SSH to the client server after connection is defined on port 2613, but this can be easily changed by editing the docker-compose.yml and rerunning docker-compose up -d
+After bringing the container online, we now have an OpenVPN server running on our machine. At this point, you'll need to copy your generated client config file down to your homelab and use an OpenVPN client to create a connection. Any will do. The server will handle DHCP (or static address assignment if configured below) for the homelab client. Once the server is connected, we'll need to properly forward our required ports through the server to the client.
 
-After editing the forward.sh file to your liking, and ensuring the openvpn container is running, run the following to apply the rules to the running container.
+Back over on the server machine, run:
 
-	docker-compose exec -T openvpn /bin/sh < ./forward.sh
+	docker exec -i openvpn bash -s VPN_CLIENT_IP VPN_CLIENT_PORT DOCKER_CONTAINER_PORT < forward.sh 
 
-This will create the required routing rules to pass an SSH connection through the VPN to the client machine, and port 80
+So for our SSH example above, and assuming a static VPN client IP of 192.168.255.100, the command would look like this:
+
+	docker exec -i openvpn bash -s 192.168.255.100 22 12344 < forward.sh
+
+In this example, port 12344 from our docker container inbound will be forwarded through to port 22 on our homelab (the SSH port). You need to run this command for every port combo that you'd like to forward through to the client. Every instance of the forward.sh command run should have a corresponding entry in docker-compose.yml ports section, otherwise the traffic won't be properly forwarded into the container for further forwarding to our client.
 
 If you ever rebuild the openvpn server container, you'll need to rerun the above command to reconfigure routing.
 
-You'll need to copy your generated client config file down to your homelab and use an OpenVPN client to create a connection. Any will do. The server will handle DHCP (or static address assignment if configured below) for the homelab client, and if everything is set up correctly, inbound traffic on port 80 to the VPN server should now be handed off over an encrypted connection straight to port 80 on your homelab!
-
-At this point, SSH connections to the client machine must be routed through the VPN server. You can configure the external SSH port in the docker-compose.yml file. Essentially, you'll now SSH both the client and server with the same IP address, but a different port. This is due to all traffic being routed through the VPN.
+If following the example above, you'll now SSH both the homelab and VPN server with the same IP address, but a different port. This is due to all traffic being routed through the VPN for added security.
 
 
 ## Setting Client Static IP ##
