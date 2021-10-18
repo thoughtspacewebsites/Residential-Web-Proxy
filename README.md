@@ -4,8 +4,31 @@ Utilizes docker to install both OpenVPN server and HAProxy. Using OpenVPN, clien
 
 ## How To ##
 
-Run docker-compose up -d, and then afterwards, run:
+This image depends on the kylemanna/openvpn docker image. This image must be installed and correctly configured. You'll want to set this image up on a cloud VPS service like Digital Ocean. Install Docker and docker compose, and then follow the docker-compose quick start guide here: https://github.com/kylemanna/docker-openvpn/blob/master/docs/docker-compose.md
+
+After getting the server set up, and configuring a client certificate for your home lab, make sure the container is online by running
+
+	docker-compose up -d
+
+and then afterwards, run:
 
 	docker-compose exec -T openvpn /bin/sh < ./forward.sh
 
-This will create the required routing rules to pass an SSH connection through the VPN to the client machine
+This will create the required routing rules to pass an SSH connection through the VPN to the client machine, and port 80
+
+You'll need to copy your generated client config file down to your homelab and use an OpenVPN client to create a connection. Any will do. The server will handle DHCP (or static address assignment if configured below) for the homelab client, and if everything is set up correctly, inbound traffic on port 80 to the VPN server should now be handed off over an encrypted connection straight to port 80 on your homelab!
+
+At this point, SSH connections to the client machine must be routed through the VPN server. You can configure the external SSH port in the docker-compose.yml file. Essentially, you'll now SSH both the client and server with the same IP address, but a different port. This is due to all traffic being routed through the VPN.
+
+
+## Setting Client Static IP ##
+
+In order to define the static IP for each connected client, after creating your client config files, create a file in /openvpn-data/conf/ccd with the name of your client (for example, "my-client". Then, in this file, paste the following, replacing the first IP with your desired static IP address
+
+	ifconfig-push 192.168.255.xxx 192.168.255.1
+
+## Use, abuse, and expand this! ##
+
+This is a labor of love, trying to figure out a way to create a static IP tied to a homelab that doesn't require paying your residential ISP for business class service just to get a static address. Also, you can keep this static IP as long as you pay for your cloud service server. It will move with you if you ever move, creating a very reliable way to keep a static IP on a homelab setup. 
+
+Anyway, there may be bugs or other issues, and this is a young repo that's continuing to grow. Contributions and recommendations are highly welcome!
