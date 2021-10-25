@@ -8,7 +8,7 @@ services:
     ports:
      - "1194:1194/udp"
      - "2613:12344"
-     - "80:12345"
+       #- "80:12345"
     restart: always
     volumes:
      - ./openvpn-data/conf:/etc/openvpn
